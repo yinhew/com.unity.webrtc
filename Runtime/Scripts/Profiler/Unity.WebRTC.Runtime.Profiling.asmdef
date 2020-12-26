@@ -1,0 +1,17 @@
+{
+    "name": "Unity.WebRTC.Runtime.Profiling",
+    "rootNamespace": "",
+    "references": [
+        "GUID:b46779583a009f04ba9f5f31d0e7e6ac",
+        "GUID:f12aafacab75a87499e7e45c873ffab8"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
