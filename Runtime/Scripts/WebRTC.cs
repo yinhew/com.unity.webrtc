@@ -7,6 +7,10 @@ using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 
+#if UNITY_WEBRTC_ENABLE_PROFILING_CORE
+using Unity.WebRTC.Profiling;
+#endif
+
 namespace Unity.WebRTC
 {
     /// <summary>
@@ -432,6 +436,9 @@ namespace Unity.WebRTC
                         }
                     }
                 }
+#if UNITY_WEBRTC_ENABLE_PROFILING_CORE
+                ProfilerManager.Update();
+#endif
             }
         }
 
