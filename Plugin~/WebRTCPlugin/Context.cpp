@@ -17,6 +17,7 @@
 #include "UnityVideoEncoderFactory.h"
 #include "UnityVideoDecoderFactory.h"
 #include "UnityVideoTrackSource.h"
+#include "EncodedStreamTransformer.h"
 
 #include "api/task_queue/default_task_queue_factory.h"
 
@@ -382,9 +383,17 @@ namespace webrtc
         rtc::scoped_refptr<UnityVideoTrackSource> source =
             new rtc::RefCountedObject<UnityVideoTrackSource>(
                 false, absl::nullopt);
-
         AddRefPtr(source);
         return source;
+    }
+
+    FrameTransformerInterface* Context::CreateFrameTransformer(
+        DelegateTransformedFrame callback)
+    {
+        rtc::scoped_refptr<EncodedStreamTransformer> transformer =
+            new rtc::RefCountedObject<EncodedStreamTransformer>(callback);
+        AddRefPtr(transformer);
+        return transformer;
     }
 
     webrtc::VideoTrackInterface* Context::CreateVideoTrack(
