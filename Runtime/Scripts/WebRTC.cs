@@ -422,14 +422,8 @@ namespace Unity.WebRTC
                     {
                         if (!reference.TryGetTarget(out var track))
                             continue;
-                        if (track.IsEncoderInitialized)
-                        {
-                            track.Update();
-                        }
-                        else
-                        {
-                            track.UpdateReceiveTexture();
-                        }
+                        track.Update();
+                        track.UpdateReceiveTexture();
                     }
                 }
             }
@@ -1005,6 +999,8 @@ namespace Unity.WebRTC
         public static extern IntPtr ReceiverGetTrack(IntPtr receiver);
         [DllImport(WebRTC.Lib)]
         public static extern IntPtr ReceiverGetStreams(IntPtr receiver, out ulong length);
+        [DllImport(WebRTC.Lib)]
+        public static extern void ReceiverGetSources(IntPtr receiver, out ulong length);
         [DllImport(WebRTC.Lib)]
         public static extern int DataChannelGetID(IntPtr ptr);
         [DllImport(WebRTC.Lib)]
