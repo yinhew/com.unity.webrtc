@@ -158,7 +158,7 @@ int32_t GetPhysicalDeviceIndex(
     VkInstance instance, std::vector<VkPhysicalDevice>& list, bool* found)
 {
     std::array<uint8_t, VK_UUID_SIZE> deviceUUID;
-    for(int i = 0; i < list.size(); ++i)
+    for(size_t i = 0; i < list.size(); ++i)
     {
         VkPhysicalDevice physicalDevice = list[i];
         if (!VulkanUtility::GetPhysicalDeviceUUIDInto(
@@ -215,13 +215,10 @@ void* CreateDeviceVulkan()
     if(!LoadVulkanModule())
         assert("failed loading vulkan module");
 
-    std::vector<const char*> layers = { "VK_LAYER_LUNARG_standard_validation" };
     VkInstanceCreateInfo instanceInfo{};
     instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     instanceInfo.enabledExtensionCount = static_cast<uint32_t>(instanceExtensions.size());
     instanceInfo.ppEnabledExtensionNames = instanceExtensions.data();
-    instanceInfo.enabledLayerCount = static_cast<uint32_t>(layers.size());
-    instanceInfo.ppEnabledLayerNames = layers.data();
     instanceInfo.pApplicationInfo = &appInfo;
     VkInstance instance = nullptr;
     VKCHECK(vkCreateInstance(&instanceInfo, nullptr, &instance));
@@ -360,8 +357,9 @@ IUnityInterface* CreateUnityInterface(UnityGfxRenderer renderer) {
     case kUnityGfxRendererMetal:
         return nullptr;
 #endif
+    default:
+        return nullptr;
     }
-    return nullptr;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -390,8 +388,9 @@ void* CreateGfxDevice(UnityGfxRenderer renderer)
     case kUnityGfxRendererMetal:
         return CreateDeviceMetal();
 #endif
+    default:
+        return nullptr;
     }
-    return nullptr;
 }
 //---------------------------------------------------------------------------------------------------------------------
 
@@ -420,6 +419,8 @@ void DestroyGfxDevice(void* pGfxDevice, UnityGfxRenderer renderer)
     case kUnityGfxRendererMetal:
         return;
 #endif
+    default:
+        return;
     }
 }
 

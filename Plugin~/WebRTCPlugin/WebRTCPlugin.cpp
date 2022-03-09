@@ -55,7 +55,7 @@ namespace webrtc
         int32_t length;
         T* values;
 
-        T& operator[](int i) const
+        T& operator[](size_t i) const
         {
             return values[i];
         }
@@ -118,8 +118,10 @@ namespace webrtc
             return *this;
         }
 
+        #if defined(__clang__) || defined(__GNUC__)
         __attribute__((optnone))
-        explicit operator const absl::optional<T>&() const
+        #endif
+        explicit operator const absl::optional<T>() const
         {
             absl::optional<T> dst = absl::nullopt;
             if (hasValue)
@@ -166,7 +168,7 @@ namespace webrtc
         while (true)
         {
             pos = s.find(delimiter);
-            int length = pos;
+            size_t length = pos;
             if(pos == std::string::npos)
                 length = str.length();
             if (length == 0)
@@ -246,7 +248,7 @@ extern "C"
     {
 #if CUDA_PLATFORM
         IGraphicsDevice* device = GraphicsUtility::GetGraphicsDevice();
-        if(!device->IsCudaSupport())
+        if(!device || !device->IsCudaSupport())
         {
             return false;
         }
@@ -603,7 +605,7 @@ extern "C"
     }
 
 
-    const std::map<std::string, byte> statsTypes =
+    const std::map<std::string, uint32_t> statsTypes =
     {
         { "codec", 0 },
         { "inbound-rtp", 1 },
@@ -628,11 +630,11 @@ extern "C"
         { "ice-server", 20 }
     };
 
-    UNITY_INTERFACE_EXPORT const RTCStats** StatsReportGetStatsList(const RTCStatsReport* report, size_t* length, byte** types)
+    UNITY_INTERFACE_EXPORT const RTCStats** StatsReportGetStatsList(const RTCStatsReport* report, size_t* length, uint32_t** types)
     {
         const size_t size = report->size();
         *length = size;
-        *types = static_cast<byte*>(CoTaskMemAlloc(sizeof(byte) * size));
+        *types = static_cast<uint32_t*>(CoTaskMemAlloc(sizeof(uint32_t) * size));
         void* buf = CoTaskMemAlloc(sizeof(RTCStats*) * size);
         const RTCStats** ret = static_cast<const RTCStats**>(buf);
         if(size == 0)
@@ -669,7 +671,7 @@ extern "C"
         return ConvertString(stats->id());
     }
 
-    UNITY_INTERFACE_EXPORT byte StatsGetType(const RTCStats* stats)
+    UNITY_INTERFACE_EXPORT uint32_t StatsGetType(const RTCStats* stats)
     {
         return statsTypes.at(stats->type());
     }
@@ -706,7 +708,7 @@ extern "C"
 
     UNITY_INTERFACE_EXPORT int64_t StatsMemberGetLong(const RTCStatsMemberInterface* member)
     {
-        return *member->cast_to<::webrtc::RTCStatsMember<uint64_t>>();
+        return *member->cast_to<::webrtc::RTCStatsMember<int64_t>>();
     }
 
     UNITY_INTERFACE_EXPORT uint64_t StatsMemberGetUnsignedLong(const RTCStatsMemberInterface* member)
@@ -1071,9 +1073,10 @@ extern "C"
         return transceiver->direction();
     }
 
-    UNITY_INTERFACE_EXPORT void TransceiverSetDirection(RtpTransceiverInterface* transceiver, RtpTransceiverDirection direction)
+    UNITY_INTERFACE_EXPORT RTCErrorType TransceiverSetDirection(RtpTransceiverInterface* transceiver, RtpTransceiverDirection direction)
     {
-        transceiver->SetDirection(direction);
+        RTCError error = transceiver->SetDirectionWithError(direction);
+        return error.type();
     }
 
     struct RTCRtpCodecCapability
@@ -1096,7 +1099,7 @@ extern "C"
     UNITY_INTERFACE_EXPORT RTCErrorType TransceiverSetCodecPreferences(RtpTransceiverInterface* transceiver, RTCRtpCodecCapability* codecs, size_t length)
     {
         std::vector<RtpCodecCapability> _codecs(length);
-        for(int i = 0; i < length; i++)
+        for(size_t i = 0; i < length; i++)
         {
             std::string mimeType = ConvertString(codecs[i].mimeType);
             std::tie(_codecs[i].kind, _codecs[i].name) = ConvertMimeType(mimeType);

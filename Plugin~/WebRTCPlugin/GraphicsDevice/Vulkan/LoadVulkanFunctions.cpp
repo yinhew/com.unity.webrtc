@@ -9,6 +9,10 @@ namespace unity
 namespace webrtc
 {
 
+// todo(kazuki):: fix workaround
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmacro-redefined"
+
 #define EXPORTED_VULKAN_FUNCTION(func) PFN_##func func;
 #define GLOBAL_VULKAN_FUNCTION(func) PFN_##func func;
 #define INSTANCE_VULKAN_FUNCTION(func) PFN_##func func;
@@ -17,10 +21,15 @@ namespace webrtc
 #include "ListOfVulkanFunctions.inl"
 
 bool LoadVulkanLibrary(LIBRARY_TYPE& library) {
-#if defined(_WIN32)
+// Keep the logic similar to Unity internals at VKApiFunctions.cpp
+#if defined(UNITY_WIN)
     library = LoadLibrary("vulkan-1.dll");
-#elif defined(__linux)
+#elif defined(UNITY_ANDROID)
     library = dlopen("libvulkan.so", RTLD_NOW | RTLD_LOCAL);
+#elif defined(UNITY_LINUX)
+    library = dlopen("libvulkan.so.1", RTLD_NOW | RTLD_LOCAL);
+#else
+#error Unsupported Platform
 #endif
     if (library == nullptr)
         return false;
@@ -28,7 +37,7 @@ bool LoadVulkanLibrary(LIBRARY_TYPE& library) {
 }
 
 bool LoadExportedVulkanFunction(LIBRARY_TYPE const& library) {
-#if defined(_WIN32)
+#if defined(UNITY_WIN)
 #define LoadFunction GetProcAddress
 #elif defined(__linux)
 #define LoadFunction dlsym
@@ -72,6 +81,7 @@ bool LoadDeviceVulkanFunction(VkDevice device) {
 #include "ListOfVulkanFunctions.inl"
     return true;
 }
+#pragma clang diagnostic pop
 
 } // namespace webrtc
 } // namespace unity

@@ -10,11 +10,6 @@ namespace Unity.WebRTC
     {
         public static void SetTrack(this AudioSource source, AudioStreamTrack track)
         {
-            if(track.Renderer != null)
-            {
-                throw new InvalidOperationException(
-                    $"AudioStreamTrack already has AudioSource {track.Renderer.name}.");
-            }
             track._streamRenderer.Source = source;
         }
     }
@@ -41,12 +36,6 @@ namespace Unity.WebRTC
     /// <summary>
     ///
     /// </summary>
-    /// <param name="renderer"></param>
-    public delegate void OnAudioReceived(AudioSource renderer);
-
-    /// <summary>
-    ///
-    /// </summary>
     public class AudioStreamTrack : MediaStreamTrack
     {
         /// <summary>
@@ -65,11 +54,6 @@ namespace Unity.WebRTC
 
         private AudioSource _source;
 
-        /// <summary>
-        ///
-        /// </summary>
-        public AudioSource Renderer => _streamRenderer.Source;
-
         internal class AudioStreamRenderer : IDisposable
         {
             private bool disposed;
@@ -78,7 +62,7 @@ namespace Unity.WebRTC
 
             private AudioSource _audioSource;
             private AudioCustomFilter _filter;
-
+            private AudioStreamTrack _track;
 
 
             public AudioSource Source 
@@ -113,9 +97,11 @@ namespace Unity.WebRTC
                 source.Play();
             }
 
-            public AudioStreamRenderer()
+            public AudioStreamRenderer(AudioStreamTrack track)
                 : this(WebRTC.Context.CreateAudioTrackSink())
             {
+                _track = track;
+                _track?.AddSink(this);
             }
 
             public AudioStreamRenderer(IntPtr ptr)
@@ -138,6 +124,7 @@ namespace Unity.WebRTC
 
                 if (self != IntPtr.Zero && !WebRTC.Context.IsNull)
                 {
+                    _track?.RemoveSink(this);
                     WebRTC.Table.Remove(self);
                     WebRTC.Context.DeleteAudioTrackSink(self);
                 }
@@ -184,8 +171,6 @@ namespace Unity.WebRTC
         {
             if (source == null)
                 throw new ArgumentNullException("AudioSource argument is null.");
-            if (source.clip == null)
-                throw new ArgumentException("AudioClip must to be attached on AudioSource.");
             _source = source;
 
             _audioCapturer = source.gameObject.AddComponent<AudioCustomFilter>();
@@ -201,8 +186,7 @@ namespace Unity.WebRTC
 
         internal AudioStreamTrack(IntPtr ptr) : base(ptr)
         {
-            _streamRenderer = new AudioStreamRenderer();
-            AddSink(_streamRenderer);
+            _streamRenderer = new AudioStreamRenderer(this);
         }
 
         internal void AddSink(AudioStreamRenderer renderer)
@@ -236,7 +220,6 @@ namespace Unity.WebRTC
                 }
                 if(_streamRenderer != null)
                 {
-                    RemoveSink(_streamRenderer);
                     _streamRenderer?.Dispose();
                     _streamRenderer = null;
                 }
