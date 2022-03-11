@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Collections;
 using UnityEngine;
 using Unity.WebRTC;
 using Unity.WebRTC.Samples;
@@ -17,6 +18,9 @@ class PeerConnectionSample : MonoBehaviour
     [SerializeField] private Text localCandidateId;
     [SerializeField] private Text remoteCandidateId;
     [SerializeField] private Dropdown dropDownProtocol;
+    [SerializeField] private Toggle shouldEncodeFrameData;
+    [SerializeField] private Text localEncodedFrameData;
+    [SerializeField] private Text remoteEncodedFrameData;
 
     [SerializeField] private Camera cam;
     [SerializeField] private RawImage sourceImage;
@@ -41,6 +45,10 @@ class PeerConnectionSample : MonoBehaviour
     private DelegateOnTrack pc2Ontrack;
     private DelegateOnNegotiationNeeded pc1OnNegotiationNeeded;
     private bool videoUpdateStarted;
+    private NativeArray<byte> pc1SerializedDataToEncode;
+    private int pc1EncodedDataToSend = -1;
+    private int pc2EncodedFrameDataReceived = -1;
+    private bool pc1ShouldEncodeFrameData;
 
     private const int width = 1280;
     private const int height = 720;
@@ -53,11 +61,17 @@ class PeerConnectionSample : MonoBehaviour
         restartButton.onClick.AddListener(RestartIce);
         hangUpButton.onClick.AddListener(HangUp);
         receiveStream = new MediaStream();
+
+        pc1ShouldEncodeFrameData = shouldEncodeFrameData.isOn;
+        shouldEncodeFrameData.onValueChanged.AddListener(OnShouldEncodeFrameDataToggled);
     }
 
     private void OnDestroy()
     {
         WebRTC.Dispose();
+
+        if (pc1SerializedDataToEncode.IsCreated)
+            pc1SerializedDataToEncode.Dispose();
     }
 
     private void Start()
@@ -74,6 +88,7 @@ class PeerConnectionSample : MonoBehaviour
         pc2Ontrack = e =>
         {
             receiveStream.AddTrack(e.Track);
+            e.Receiver.Transform = new RTCRtpScriptTransform(TrackKind.Video, HandleReceiverTransformEvent);
         };
         pc1OnNegotiationNeeded = () => { StartCoroutine(PeerNegotiationNeeded(_pc1)); };
 
@@ -88,6 +103,21 @@ class PeerConnectionSample : MonoBehaviour
                 };
             }
         };
+    }
+
+    private void HandleReceiverTransformEvent(RTCTransformEvent ev)
+    {
+        var frame = (RTCEncodedVideoFrame)(ev.Frame);
+        var data = frame.GetData();
+        if (data.Length == 4)
+        {
+            // Convert NativeArray<byte> to int.
+            pc2EncodedFrameDataReceived = data[0];
+            for (var i = 1; i < 4; ++i)
+            {
+                pc2EncodedFrameDataReceived += (data[i] << (i * 8));
+            }
+        }
     }
 
     private void OnStart()
@@ -111,6 +141,12 @@ class PeerConnectionSample : MonoBehaviour
             float t = Time.deltaTime;
             rotateObject.Rotate(100 * t, 200 * t, 300 * t);
         }
+
+        if (pc1EncodedDataToSend != -1)
+            localEncodedFrameData.text = pc1EncodedDataToSend.ToString();
+
+        if (pc2EncodedFrameDataReceived != -1)
+            remoteEncodedFrameData.text = pc2EncodedFrameDataReceived.ToString();
     }
 
     private static RTCConfiguration GetSelectedSdpSemantics()
@@ -206,7 +242,10 @@ class PeerConnectionSample : MonoBehaviour
     {
         foreach (var track in videoStream.GetTracks())
         {
-            pc1Senders.Add(_pc1.AddTrack(track, videoStream));
+            var sender = _pc1.AddTrack(track, videoStream);
+            pc1Senders.Add(sender);
+
+            sender.Transform = new RTCRtpScriptTransform(TrackKind.Video, HandleSenderTransformEvent);
         }
 
         if (!videoUpdateStarted)
@@ -214,6 +253,32 @@ class PeerConnectionSample : MonoBehaviour
             StartCoroutine(WebRTC.Update());
             videoUpdateStarted = true;
         }
+    }
+
+    private void HandleSenderTransformEvent(RTCTransformEvent ev)
+    {
+        if (pc1ShouldEncodeFrameData)
+        {
+            if (!pc1SerializedDataToEncode.IsCreated)
+                pc1SerializedDataToEncode = new NativeArray<byte>(4, Allocator.Persistent);
+
+            ++pc1EncodedDataToSend;
+
+            var videoFrame = (RTCEncodedVideoFrame)(ev.Frame);
+
+            // Convert the int value into a byte array.
+            for (var i = 0; i < 4; ++i)
+            {
+                pc1SerializedDataToEncode[i] = (byte)((pc1EncodedDataToSend >> (i * 8)) & 0xff);
+            }
+
+            videoFrame.SetData(pc1SerializedDataToEncode.AsReadOnly());
+        }
+    }
+
+    private void OnShouldEncodeFrameDataToggled(bool isOn)
+    {
+        pc1ShouldEncodeFrameData = isOn;
     }
 
     private void RemoveTracks()
