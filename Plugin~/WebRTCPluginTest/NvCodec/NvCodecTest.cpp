@@ -96,6 +96,12 @@ namespace webrtc
         EXPECT_GT(formats.size(), 0);
     }
 
+    TEST_P(NvCodecTest, SupportedNvDecoderCodecs)
+    {
+        std::vector<SdpVideoFormat> formats = SupportedNvDecoderCodecs(context_);
+        EXPECT_GT(formats.size(), 0);
+    }
+
     TEST_P(NvCodecTest, SupportedEncoderCount) { EXPECT_GT(SupportedEncoderCount(context_), 0); }
 
     TEST_P(NvCodecTest, SetRates)
