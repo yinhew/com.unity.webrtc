@@ -133,8 +133,7 @@ namespace webrtc
         encoder_ = CreateEncoder();
         decoder_ = CreateDecoder();
         encoder_->RegisterEncodeCompleteCallback(&encodedImageCallback_);
-        // todo(kazuki)::
-        // decoder_->RegisterDecodeCompleteCallback(&_decodedImageCallback);
+        decoder_->RegisterDecodeCompleteCallback(&decodedImageCallback_);
     }
 }
 }

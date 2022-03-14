@@ -25,6 +25,8 @@ namespace webrtc
         {
             if (encoder_)
                 encoder_ = nullptr;
+            if (decoder_)
+                decoder_ = nullptr;
             EXPECT_TRUE(ck(cuCtxDestroy(context_)));
         }
 

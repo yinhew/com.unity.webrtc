@@ -76,7 +76,6 @@ namespace webrtc
 
     int32_t NvDecoderImpl::Release()
     {
-        this->m_decodedCompleteCallback = nullptr;
         m_buffer_pool.Release();
         return WEBRTC_VIDEO_CODEC_OK;
     }
