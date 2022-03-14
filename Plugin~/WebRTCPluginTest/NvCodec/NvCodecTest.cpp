@@ -176,6 +176,56 @@ namespace webrtc
         EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, encoder_->Release());
     }
 
+    TEST_P(NvCodecTest, EncodeDecode)
+    {
+        EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, encoder_->Release());
+        EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, encoder_->InitEncode(&codecSettings_, kSettings()));
+        EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, decoder_->Release());
+        EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, decoder_->InitDecode(&codecSettings_, 1));
+
+        EncodedImage encoded_frame;
+        CodecSpecificInfo codec_specific_info;
+        EncodeAndWaitForFrame(NextInputFrame(), &encoded_frame, &codec_specific_info);
+
+        // First frame should be a key frame.
+        encoded_frame._frameType = VideoFrameType::kVideoFrameKey;
+        EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, decoder_->Decode(encoded_frame, false, 0));
+        std::unique_ptr<VideoFrame> decoded_frame;
+        absl::optional<uint8_t> decoded_qp;
+        ASSERT_TRUE(WaitForDecodedFrame(&decoded_frame, &decoded_qp));
+        ASSERT_TRUE(decoded_frame);
+
+        const ColorSpace color_space = *decoded_frame->color_space();
+        EXPECT_EQ(ColorSpace::PrimaryID::kUnspecified, color_space.primaries());
+        EXPECT_EQ(ColorSpace::TransferID::kUnspecified, color_space.transfer());
+        EXPECT_EQ(ColorSpace::MatrixID::kUnspecified, color_space.matrix());
+        EXPECT_EQ(ColorSpace::RangeID::kInvalid, color_space.range());
+        EXPECT_EQ(ColorSpace::ChromaSiting::kUnspecified, color_space.chroma_siting_horizontal());
+        EXPECT_EQ(ColorSpace::ChromaSiting::kUnspecified, color_space.chroma_siting_vertical());
+    }
+
+    TEST_P(NvCodecTest, DecodedQpEqualsEncodedQp)
+    {
+        EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, encoder_->Release());
+        EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, encoder_->InitEncode(&codecSettings_, kSettings()));
+        EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, decoder_->Release());
+        EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, decoder_->InitDecode(&codecSettings_, 1));
+
+        EncodedImage encoded_frame;
+        CodecSpecificInfo codec_specific_info;
+        EncodeAndWaitForFrame(NextInputFrame(), &encoded_frame, &codec_specific_info);
+
+        // First frame should be a key frame.
+        encoded_frame._frameType = VideoFrameType::kVideoFrameKey;
+        EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, decoder_->Decode(encoded_frame, false, 0));
+        std::unique_ptr<VideoFrame> decoded_frame;
+        absl::optional<uint8_t> decoded_qp;
+        ASSERT_TRUE(WaitForDecodedFrame(&decoded_frame, &decoded_qp));
+        ASSERT_TRUE(decoded_frame);
+        ASSERT_TRUE(decoded_qp);
+        EXPECT_EQ(encoded_frame.qp_, *decoded_qp);
+    }
+
     INSTANTIATE_TEST_SUITE_P(GfxDevice, NvCodecTest, testing::ValuesIn(supportedGfxDevices));
 
 }
