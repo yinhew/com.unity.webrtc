@@ -3,6 +3,7 @@
 #include "VideoCodecTest.h"
 
 static const int kEncodeTimeoutMs = 100;
+static const int kDecodeTimeoutMs = 100;
 
 namespace unity
 {
@@ -40,9 +41,9 @@ namespace webrtc
         VideoFrame& frame, absl::optional<int32_t> decode_time_ms, absl::optional<uint8_t> qp)
     {
         MutexLock lock(&_test->decodedFrameSection_);
-        //_test->_decodedFrame.emplace(frame);
-        //_test->decoded_qp_ = qp;
-        //_test->decoded_frame_event_.Set();
+        _test->decodedFrame_.emplace(frame);
+        _test->decodedQp_ = qp;
+        _test->decodedFrameEvent_.Set();
     }
 
     VideoFrame VideoCodecTest::NextInputFrame()
@@ -98,6 +99,25 @@ namespace webrtc
             return false;
         }
         return true;
+    }
+
+    bool VideoCodecTest::WaitForDecodedFrame(std::unique_ptr<VideoFrame>* frame, absl::optional<uint8_t>* qp)
+    {
+        EXPECT_TRUE(decodedFrameEvent_.Wait(kDecodeTimeoutMs)) << "Timed out while waiting for a decoded frame.";
+        // This becomes unsafe if there are multiple threads waiting for frames.
+        MutexLock lock(&decodedFrameSection_);
+        EXPECT_TRUE(decodedFrame_);
+        if (decodedFrame_)
+        {
+            frame->reset(new VideoFrame(std::move(*decodedFrame_)));
+            *qp = decodedQp_;
+            decodedFrame_.reset();
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     void VideoCodecTest::SetUp()
