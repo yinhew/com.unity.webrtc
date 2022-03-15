@@ -1,9 +1,10 @@
 #include "pch.h"
+
 #include "NvDecoderImpl.h"
 #include "NvDecoder/NvDecoder.h"
 #include "../Utils/NvCodecUtils.h"
-#include "api/video/video_codec_type.h"
 #include "api/video/i420_buffer.h"
+#include "api/video/video_codec_type.h"
 #include "third_party/libyuv/include/libyuv/convert.h"
 
 using namespace webrtc;
@@ -15,17 +16,14 @@ namespace webrtc
     using namespace ::webrtc;
 
     NvDecoderImpl::NvDecoderImpl(CUcontext context)
-    : m_context(context)
-    , m_decoder(nullptr)
-    , m_decodedCompleteCallback(nullptr)
-    , m_buffer_pool(false)
+        : m_context(context)
+        , m_decoder(nullptr)
+        , m_decodedCompleteCallback(nullptr)
+        , m_buffer_pool(false)
     {
     }
 
-    NvDecoderImpl::~NvDecoderImpl()
-    {
-        Release();
-    }
+    NvDecoderImpl::~NvDecoderImpl() { Release(); }
 
     VideoDecoder::DecoderInfo NvDecoderImpl::GetDecoderInfo() const
     {
@@ -57,7 +55,7 @@ namespace webrtc
         m_codec = *codec_settings;
 
         const CUresult result = cuCtxSetCurrent(m_context);
-        if(!ck(result))
+        if (!ck(result))
         {
             RTC_LOG(LS_ERROR) << "initialization failed on cuCtxSetCurrent result" << result;
             return WEBRTC_VIDEO_CODEC_ENCODER_FAILURE;
@@ -83,12 +81,12 @@ namespace webrtc
     int32_t NvDecoderImpl::Decode(const EncodedImage& input_image, bool missing_frames, int64_t render_time_ms)
     {
         CUcontext current;
-        if(!ck(cuCtxGetCurrent(&current)))
+        if (!ck(cuCtxGetCurrent(&current)))
         {
             RTC_LOG(LS_ERROR) << "decode failed on cuCtxGetCurrent is failed";
             return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
         }
-        if(current != m_context)
+        if (current != m_context)
         {
             RTC_LOG(LS_ERROR) << "decode failed on not match current context and hold context";
             return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
@@ -104,16 +102,21 @@ namespace webrtc
             return WEBRTC_VIDEO_CODEC_ERR_PARAMETER;
         }
 
-        int nFrameReturnd = m_decoder->Decode(input_image.data(), input_image.size(), CUVID_PKT_TIMESTAMP, input_image.NtpTimeMs());
-        if (nFrameReturnd <= 0) 
+        m_h264_bitstream_parser.ParseBitstream(input_image);
+        absl::optional<int> qp = m_h264_bitstream_parser.GetLastSliceQp();
+
+        int nFrameReturnd = 0;
+        do
         {
-            RTC_LOG(LS_ERROR) << "decode failed on nvdecode process failed";
-            return WEBRTC_VIDEO_CODEC_ERROR; 
-        }
+            nFrameReturnd =
+                m_decoder->Decode(input_image.data(), input_image.size(), CUVID_PKT_TIMESTAMP, input_image.NtpTimeMs());
+        } while (nFrameReturnd == 0);
 
         uint8_t* pFrame = m_decoder->GetFrame();
 
-        rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer = m_buffer_pool.CreateI420Buffer(m_decoder->GetWidth(), m_decoder->GetHeight());
+        rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer =
+            m_buffer_pool.CreateI420Buffer(m_decoder->GetWidth(), m_decoder->GetHeight());
+
         libyuv::NV12ToI420(
             pFrame,
             m_decoder->GetDeviceFramePitch(),
@@ -126,15 +129,16 @@ namespace webrtc
             i420_buffer->MutableDataV(),
             i420_buffer->StrideV(),
             m_decoder->GetWidth(),
-            m_decoder->GetHeight()
-        );
+            m_decoder->GetHeight());
 
         VideoFrame decoded_frame = VideoFrame::Builder()
-                              .set_video_frame_buffer(i420_buffer)
-                              .set_timestamp_rtp(input_image.Timestamp())
-                              .build();
+                                       .set_video_frame_buffer(i420_buffer)
+                                       .set_timestamp_rtp(input_image.Timestamp())
+                                       .build();
 
-        m_decodedCompleteCallback->Decoded(decoded_frame);
+        // todo: measurement decoding time
+        absl::optional<int32_t> decodetime;
+        m_decodedCompleteCallback->Decoded(decoded_frame, decodetime, qp);
 
         return WEBRTC_VIDEO_CODEC_OK;
     }
