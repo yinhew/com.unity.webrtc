@@ -43,6 +43,7 @@ namespace webrtc
         VideoCodecTest()
             : encodedImageCallback_(this)
             , decodedImageCallback_(this)
+            , lastInputFrameTimestamp_(0)
         {
         }
         virtual ~VideoCodecTest() override { }
@@ -113,6 +114,8 @@ namespace webrtc
         absl::optional<uint8_t> decodedQp_;
         FakeEncodedImageCallback encodedImageCallback_;
         FakeDecodedImageCallback decodedImageCallback_;
+
+        uint32_t lastInputFrameTimestamp_;
     };
 }
 }

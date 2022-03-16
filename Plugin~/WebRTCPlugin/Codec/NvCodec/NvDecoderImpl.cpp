@@ -109,36 +109,40 @@ namespace webrtc
         do
         {
             nFrameReturnd =
-                m_decoder->Decode(input_image.data(), input_image.size(), CUVID_PKT_TIMESTAMP, input_image.NtpTimeMs());
+                m_decoder->Decode(input_image.data(), input_image.size(), CUVID_PKT_TIMESTAMP, input_image.Timestamp());
         } while (nFrameReturnd == 0);
 
-        uint8_t* pFrame = m_decoder->GetFrame();
+        for (int i = 0; i < nFrameReturnd; i++)
+        {
+            int64_t timeStamp;
+            uint8_t* pFrame = m_decoder->GetFrame(&timeStamp);
 
-        rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer =
-            m_buffer_pool.CreateI420Buffer(m_decoder->GetWidth(), m_decoder->GetHeight());
+            rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer =
+                m_buffer_pool.CreateI420Buffer(m_decoder->GetWidth(), m_decoder->GetHeight());
 
-        libyuv::NV12ToI420(
-            pFrame,
-            m_decoder->GetDeviceFramePitch(),
-            pFrame + m_decoder->GetHeight() * m_decoder->GetDeviceFramePitch(),
-            m_decoder->GetDeviceFramePitch(),
-            i420_buffer->MutableDataY(),
-            i420_buffer->StrideY(),
-            i420_buffer->MutableDataU(),
-            i420_buffer->StrideU(),
-            i420_buffer->MutableDataV(),
-            i420_buffer->StrideV(),
-            m_decoder->GetWidth(),
-            m_decoder->GetHeight());
+            libyuv::NV12ToI420(
+                pFrame,
+                m_decoder->GetDeviceFramePitch(),
+                pFrame + m_decoder->GetHeight() * m_decoder->GetDeviceFramePitch(),
+                m_decoder->GetDeviceFramePitch(),
+                i420_buffer->MutableDataY(),
+                i420_buffer->StrideY(),
+                i420_buffer->MutableDataU(),
+                i420_buffer->StrideU(),
+                i420_buffer->MutableDataV(),
+                i420_buffer->StrideV(),
+                m_decoder->GetWidth(),
+                m_decoder->GetHeight());
 
-        VideoFrame decoded_frame = VideoFrame::Builder()
-                                       .set_video_frame_buffer(i420_buffer)
-                                       .set_timestamp_rtp(input_image.Timestamp())
-                                       .build();
+            VideoFrame decoded_frame = VideoFrame::Builder()
+                                           .set_video_frame_buffer(i420_buffer)
+                                           .set_timestamp_rtp(timeStamp)
+                                           .build();
 
-        // todo: measurement decoding time
-        absl::optional<int32_t> decodetime;
-        m_decodedCompleteCallback->Decoded(decoded_frame, decodetime, qp);
+            // todo: measurement decoding time
+            absl::optional<int32_t> decodetime;
+            m_decodedCompleteCallback->Decoded(decoded_frame, decodetime, qp);
+        }
 
         return WEBRTC_VIDEO_CODEC_OK;
     }

@@ -54,12 +54,11 @@ namespace webrtc
                                      .set_update_rect(frame_data.update_rect)
                                      .build();
 
-        // I420Buffer::SetBlack(buffer);
-        // const uint32_t timestamp =
-        //    last_input_frame_timestamp_ + kVideoPayloadTypeFrequency / codec_settings_.maxFramerate;
-        // input_frame.set_timestamp(timestamp);
+         // I420Buffer::SetBlack(frame_data.buffer);
+         const uint32_t timestamp = lastInputFrameTimestamp_ + kVideoPayloadTypeFrequency / codecSettings_.maxFramerate;
+         input_frame.set_timestamp(timestamp);
 
-        // last_input_frame_timestamp_ = timestamp;
+         lastInputFrameTimestamp_ = timestamp;
         return input_frame;
     }
 
