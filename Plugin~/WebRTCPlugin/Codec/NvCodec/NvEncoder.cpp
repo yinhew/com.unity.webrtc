@@ -234,6 +234,8 @@ namespace webrtc
 
     void NvEncoder::UpdateSettings()
     {
+        SetRates(5000000u, 60);
+
         bool settingChanged = false;
         if (nvEncConfig.rcParams.averageBitRate != m_targetBitrate)
         {
